@@ -31,6 +31,7 @@ local mod = get_mod("Fly You Fools 2")
 -- Booleans
 mod.is_active_FYF2 = false
 mod.is_ingame = false
+mod.specialcase_is_in_vortex = false
 
 -- Global variables
 mod.cam_fov = 1
@@ -67,18 +68,16 @@ mod.update = function (dt, t)
 		if Managers.player then
 			if Managers.player:local_player() then
 				if Managers.player:local_player().player_unit then
-					-- Special case: is_in_vortex
-					if ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system"):is_in_vortex() then
+					-- Special case : is_in_vortex
+					if ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system"):is_in_vortex() and mod.specialcase_is_in_vortex then
+						mod:echo("YES")
 						ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").in_vortex = false
 						ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").in_vortex_unit = nil
 						ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").near_vortex = false
 						ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").near_vortex_unit = nil
-						ScriptUnit.extension(Managers.player:local_player().player_unit, "locomotion_system").maximum_upward_velocity = math.huge
-					end
-					-- Special case: is_catapulted
-					if ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system"):is_catapulted() then
-						ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system"):set_catapulted(false)
-						ScriptUnit.extension(Managers.player:local_player().player_unit, "locomotion_system").maximum_upward_velocity = math.huge
+						ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").catapulted = false
+						ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").catapulted_direction = nil
+						ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").catapulted_velocity = nil
 					end
 					
 					-- Retrieving movement inputs for flight movement
@@ -138,7 +137,6 @@ mod.update = function (dt, t)
 					
 					-- Forced velocity using everything gathered above
 					if mod.is_ingame then
-						ScriptUnit.extension(Managers.player:local_player().player_unit, "locomotion_system").maximum_upward_velocity = math.huge
 						ScriptUnit.extension(Managers.player:local_player().player_unit, "locomotion_system"):set_forced_velocity((((move_forward - move_back) * Vector3(rotd_x, rotd_y, rotd_z)) + ((move_right - move_left) * Vector3(rotr_x, rotr_y, rotr_z)) + ((jump - crouch) * Vector3(rotu_x, rotu_y, rotu_z))) * dt * 40 * mod:get("speed_FYF2"))
 					end
 				end
@@ -147,13 +145,16 @@ mod.update = function (dt, t)
 	end
 end
 
+mod:command("test", "", function(...)
+	
+end)
+
 -- EVENTS --
 ------------
 
 --------------------
 -- USER FUNCTIONS --
 
--- Called function from keybind
 mod.toggle_FYF2 = function (self)
     if not mod.is_active_FYF2 then
         mod:activate_FYF2()
@@ -164,15 +165,8 @@ end
 
 mod.activate_FYF2 = function (self)
 	if Managers.player then
-		if Managers.player:local_player().player_unit then
+		if Managers.player:local_player().player_unit and  then
 			if ScriptUnit.extension(Managers.player:local_player().player_unit, "health_system"):is_alive() then
-				local local_player = Managers.player:local_player()
-				local player_unit = Managers.player:local_player().player_unit
-				local input_manager = Managers.input
-				local first_person_extension = ScriptUnit.has_extension(Managers.player:local_player().player_unit, "first_person_system")
-				local health_extension = ScriptUnit.extension(Managers.player:local_player().player_unit, "health_system")
-				local status_extension = ScriptUnit.has_extension(Managers.player:local_player().player_unit, "status_system")
-				
 				mod.is_active_FYF2 = true
 				mod:echo("[FYF] active")
 				
@@ -185,6 +179,13 @@ mod.activate_FYF2 = function (self)
 				
 				-- Managing special cases
 				mod:special_cases()
+				
+				local local_player = Managers.player:local_player()
+				local player_unit = Managers.player:local_player().player_unit
+				local input_manager = Managers.input
+				local first_person_extension = ScriptUnit.has_extension(Managers.player:local_player().player_unit, "first_person_system")
+				local health_extension = ScriptUnit.extension(Managers.player:local_player().player_unit, "health_system")
+				local status_extension = ScriptUnit.has_extension(Managers.player:local_player().player_unit, "status_system")
 				
 				-- Invisibility, half-invincibility and enemy noclipping
 				health_extension.is_invincible = true
@@ -213,13 +214,10 @@ mod.activate_FYF2 = function (self)
 end
 
 mod.special_cases = function(self)
-	-- Get rid of elevator while flying
-	if Unit.alive(ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system"):get_inside_transport_unit()) then
-		ScriptUnit.extension(ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system"):get_inside_transport_unit(), "transportation_system"):_unlink_transported_unit(Managers.player:local_player().player_unit)
-	end
-	
 	-- Unhooked no matter state you are in from a pack master
 	if ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system"):is_grabbed_by_pack_master() then
+		mod:echo(PlayerUnitStatusSettings.hanging_by_pack_master.release_unhook_time)
+		mod:echo(PlayerUnitStatusSettings.hanging_by_pack_master.release_unhook_time_ko)
 		ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system"):_set_packmaster_unhooked(ScriptUnit.extension(Managers.player:local_player().player_unit, "locomotion_system"), ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").pack_master_status)
 	end
 	
@@ -233,19 +231,22 @@ mod.special_cases = function(self)
 		ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").pulled_up = true
 	end
 	
-	-- Ungrab yourself from the chaos spawn when activating flight
 	if ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system"):is_grabbed_by_chaos_spawn() then
-		ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").grabbed_by_chaos_spawn = false
-		ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").grabbed_by_chaos_spawn_status = nil
-		ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").grabbed_by_chaos_spawn_status_count = nil
+		
+	end
+	
+	if ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system"):is_grabbed_by_tentacle() then
+		
+	end
+	
+	-- Fly out of vortex without being catapulted or anything
+	if ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system"):is_in_vortex() then
+		mod.specialcase_is_in_vortex = true
 	end
 	
 	-- Fly out of catapulted state
-	if ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system"):is_catapulted() then
-		ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").near_vortex_unit = nil
-		ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").catapulted = false
-		ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").catapulted_direction = nil
-		ScriptUnit.extension(Managers.player:local_player().player_unit, "status_system").catapulted_velocity = nil
+	if then
+	
 	end
 	
 	-- Overpowered means state when attacked by the green flies. When entering flight mode, flies disappear
@@ -291,8 +292,6 @@ mod.set_movement_FYF2 = function(self)
 		movement_table.fall.heights.HARD_LANDING_FALL_HEIGHT = math.huge
 	end
 	
-	-- No external velocity (from bosses, lords, vortex, etc)
-	ScriptUnit.extension(Managers.player:local_player().player_unit, "locomotion_system"):set_external_velocity_enabled(false)
 	-- No collision with environnement
 	local mover = Unit.mover(Managers.player:local_player().player_unit)
 	Mover.set_collision_filter(mover, "filter_point_of_interest")
@@ -326,11 +325,8 @@ mod.reset_movement_FYF2 = function(self)
 		movement_table.fall.heights.HARD_LANDING_FALL_HEIGHT = mod.backup_HARD_LANDING_FALL_HEIGHT
 	end
 	
-	-- Set back player mover filter
 	local mover = Unit.mover(Managers.player:local_player().player_unit)
 	Mover.set_collision_filter(mover, "filter_player_mover")
-	-- Set back external velocity (from bosses, lords, vortex, etc)
-	ScriptUnit.extension(Managers.player:local_player().player_unit, "locomotion_system"):set_external_velocity_enabled(true)
 end
 
 mod.set_fov_FYF2 = function(self)
@@ -405,6 +401,7 @@ mod.deactivate_FYF2 = function (self)
 			PlayerUnitStatusSettings.hanging_by_pack_master.release_unhook_time = mod.release_unhook_time_backup
 			PlayerUnitStatusSettings.hanging_by_pack_master.release_unhook_time_ko = mod.release_unhook_time_ko_backup
 			PlayerUnitMovementSettings.get_movement_settings_table(Managers.player:local_player().player_unit).ledge_hanging.leaving_animation_time = mod.leaving_animation_time_backup
+			mod.specialcase_is_in_vortex = false
 			
 			-- Resetting options that have (or have not) been activated during flight
 			mod:reset_movement_FYF2()
@@ -504,16 +501,16 @@ mod:hook_origin(LocomotionTemplates.PlayerUnitLocomotionExtension, "update_rotat
 end)
 
 mod:hook_origin(PlayerUnitLocomotionExtension, "set_mover_filter_property", function (self, property, bool, ...)
-	-- Preventing change of collision filter during flight, especially when using a ladder
+	local modes = self._mover_modes
+	
+	fassert(bool ~= nil, "Trying to set mover filter property nil")
+	fassert(modes[property] ~= nil, "Trying to set unitialized mover filter property %q.", bool)
+	
+	modes[property] = bool
+	local filter = nil
+	
+	-- Preveting change of collision filter during flight, especially when using a ladder
 	if not mod.is_active_FYF2 then
-		local modes = self._mover_modes
-
-		fassert(bool ~= nil, "Trying to set mover filter property nil")
-		fassert(modes[property] ~= nil, "Trying to set unitialized mover filter property %q.", bool)
-
-		modes[property] = bool
-		local filter = nil
-
 		if modes.ladder then
 			filter = "filter_player_ladder_mover"
 		elseif modes.enemy_noclip then
@@ -523,11 +520,13 @@ mod:hook_origin(PlayerUnitLocomotionExtension, "set_mover_filter_property", func
 		else
 			filter = self._default_mover_filter
 		end
-
-		local mover = Unit.mover(self.unit)
-
-		Mover.set_collision_filter(mover, filter)
+	else
+		filter = "filter_point_of_interest"
 	end
+	
+	local mover = Unit.mover(self.unit)
+	
+	Mover.set_collision_filter(mover, filter)
 end)
 
 mod:hook_origin(PlayerUnitLocomotionExtension, "set_forced_velocity", function (self, velocity_forced, ...)
@@ -620,46 +619,6 @@ mod:hook(PlayerUnitLocomotionExtension, "teleport_to", function (func, self, pos
 	-- Original Function
 	local result = func(self, pos, rot, ...)
 	return result
-end)
-
--- Special case: is_in_vortex
-mod:hook_safe(PlayerCharacterStateInVortex, "update", function (self, unit, input, dt, context, t, ...)
-	-- If in vortex while flying
-	if mod.is_active_FYF2 then
-		local csm = self.csm
-		
-		csm:change_state("standing")
-		
-		return
-	end
-end)
-
--- Special case: is_catapulted
-mod:hook_safe(PlayerCharacterStateCatapulted, "update", function (self, unit, input, dt, context, t, ...)
-	-- If catapulted while flying
-	if mod.is_active_FYF2 then
-		local DIRECTIONS = PlayerUnitMovementSettings.catapulted.directions
-		local csm = self.csm
-		local anim = DIRECTIONS[self._direction].wall_collide_animation
-		
-		CharacterStateHelper.play_animation_event(unit, anim)
-		csm:change_state("standing")
-		
-		return
-	end
-end)
-
-mod:hook_safe(PlayerCharacterStateStanding, "update", function (self, unit, input, dt, context, t, ...)
-	-- If standing while flying
-	if mod.is_active_FYF2 then
-		local csm = self.csm
-		local first_person_extension = self.first_person_extension
-		
-		csm:change_state("jumping")
-		first_person_extension:change_state("jumping")
-		
-		return
-	end
 end)
 
 -- HOOKS --

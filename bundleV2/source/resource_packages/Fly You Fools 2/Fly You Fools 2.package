@@ -1,0 +1,11 @@
+mod = [
+	"Fly You Fools 2"
+]
+
+package = [
+	"resource_packages/Fly You Fools 2/Fly You Fools 2"
+]
+
+lua = [
+	"scripts/mods/Fly You Fools 2/*"
+]
