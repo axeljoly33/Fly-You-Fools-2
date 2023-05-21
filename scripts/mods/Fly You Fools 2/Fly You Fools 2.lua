@@ -420,7 +420,7 @@ end
 -- USER FUNCTIONS --
 --------------------
 
---------------------
+-----------
 -- HOOKS --
 
 mod:hook_origin(LocomotionTemplates.PlayerUnitLocomotionExtension, "update_rotation", function (data, t, dt, ...)
@@ -628,7 +628,9 @@ mod:hook_safe(PlayerCharacterStateInVortex, "update", function (self, unit, inpu
 	if mod.is_active_FYF2 then
 		local csm = self.csm
 		
-		csm:change_state("standing")
+        if csm.state_next == nil then
+            csm:change_state("standing")
+        end
 		
 		return
 	end
@@ -643,7 +645,9 @@ mod:hook_safe(PlayerCharacterStateCatapulted, "update", function (self, unit, in
 		local anim = DIRECTIONS[self._direction].wall_collide_animation
 		
 		CharacterStateHelper.play_animation_event(unit, anim)
-		csm:change_state("standing")
+        if csm.state_next == nil then
+            csm:change_state("standing")
+        end
 		
 		return
 	end
@@ -655,7 +659,9 @@ mod:hook_safe(PlayerCharacterStateStanding, "update", function (self, unit, inpu
 		local csm = self.csm
 		local first_person_extension = self.first_person_extension
 		
-		csm:change_state("jumping")
+        if csm.state_next == nil then
+            csm:change_state("jumping")
+        end
 		first_person_extension:change_state("jumping")
 		
 		return
