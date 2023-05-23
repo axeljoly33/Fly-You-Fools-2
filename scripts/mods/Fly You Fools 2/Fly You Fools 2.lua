@@ -102,10 +102,11 @@ mod.update = function (dt, t)
 					
 					-- Mouse wheel changing speed in an interval
 					local speed = 0.0
+                    local is_blocked = not not input_source:is_blocked()
 					if mod:get("step_FYF2") then
 						speed = mod:get("speed_FYF2")
 					end
-					if mod:get("speed_FYF2") then
+					if mod:get("speed_FYF2") and (is_blocked ~= true) then
 						speed = speed + (math.floor(Vector3.y(Mouse.axis(Mouse.axis_index("wheel")))) * mod:get("step_FYF2"))
 					end
 					if speed < 1 then
